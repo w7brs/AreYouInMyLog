@@ -1,0 +1,367 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "htt,://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<!-- This file is part of AYIML, Copyright 2022 Jeff Wandling -->
+<!-- AYIML is licensed under the BSD 3-Clause License -->
+
+<html xmlns="http://www.w3.org/1999/xhtml"
+       xmlns:v="urn:schemas-microsoft-com:vml">
+<head>
+
+<link 
+   href="https://fonts.googleapis.com/css2?family=Roboto&display=swap"
+   rel="stylesheet">
+<link 
+   href="https://fonts.googleapis.com/css2?family=Oxygen+Mono&display=swap"
+    rel="stylesheet">
+
+
+<style type="text/css">
+
+BODY { 
+font-family: 'Roboto', sans-serif;
+}
+TD {
+font-family: 'Oxygen Mono', monospace;
+}
+</style>
+
+<script type="text/javascript">
+//<![CDATA[
+var csign;
+
+// Do the job of handling the event of "pressing submit"
+// When the user presses submit-button we want the call sign (csign)
+// csign is a global variable.
+// Once we have the csign updated, handle the query with getQSO()
+function onSub()
+{
+   var thsf = document.qform;
+   var req
+   var timer;
+   var i = 0;
+   var bf = false;
+   for(i = 0; i< thsf.elements.length && !bf; i++)
+   {
+      var e = thsf.elements[i]; 
+      if (e.id == "cs")
+      {
+         csign = e.value; 
+         bf = true;
+      }
+   }
+   getQSO(handle);
+}
+
+
+// Wrapper function that will get last N QSO from "W" land
+function onLastSub()
+{
+   getLast(handleLast);
+}
+
+// Wrapper function that will get last N QSO from "DX" land
+function onLastDXSub()
+{
+   getLastDX(handleLast);
+}
+
+
+// Bit of boilerplate...
+
+/**
+ * http.js: utilities for scripted HTTP requests
+ *
+ * From the book JavaScript: The Definitive Guide, 5th Edition,
+ * by David Flanagan. Copyright 2006 O'Reilly Media, Inc. (ISBN: 0596101996)
+ */
+// Make sure we haven't already been loaded
+
+var HTTP;
+
+if (HTTP && (typeof HTTP != "object" || HTTP.NAME))
+    throw new Error("Namespace 'HTTP' already exists");
+
+// Create our namespace, and specify some meta-information
+HTTP = {};
+HTTP.NAME = "HTTP";    // The name of this namespace
+HTTP.VERSION = 1.0;    // The version of this namespace
+
+// This is a list of XMLHttpRequest creation factory functions to try
+HTTP._factories = [
+    function() { return new XMLHttpRequest(); },
+    function() { return new ActiveXObject("Msxml2.XMLHTTP"); },
+    function() { return new ActiveXObject("Microsoft.XMLHTTP"); }
+];
+
+// When we find a factory that works, store it here
+HTTP._factory = null;
+
+/**
+ * Create and return a new XMLHttpRequest object.
+ * 
+ * The first time we're called, try the list of factory functions until
+ * we find one that returns a nonnull value and does not throw an
+ * exception.  Once we find a working factory, remember it for later use.
+ */
+HTTP.newRequest = function() {
+    if (HTTP._factory != null) return HTTP._factory();
+
+    for(var i = 0; i < HTTP._factories.length; i++) {
+        try {
+            var factory = HTTP._factories[i];
+            var request = factory();
+            if (request != null) {
+                HTTP._factory = factory;
+                return request;
+            }
+        }
+        catch(e) {
+            continue;
+        }
+    }
+
+    // If we get here, none of the factory candidates succeeded,
+    // so throw an exception now and for all future calls.
+    HTTP._factory = function() {
+        throw new Error("XMLHttpRequest not supported");
+    }
+    HTTP._factory(); // Throw an error
+}
+
+
+// Our functions, continued....
+
+// This function modifies a region of a page that has the ID of 'mark'
+// This function clears a region of a page that has the ID of 'last'
+// See lookup.html for detail
+function handle(dat)
+{
+       document.getElementById("mark").innerHTML = dat;
+       document.getElementById("last").innerHTML = "";
+  
+}
+ 
+// The meat of the action...
+// So what we do here is call our CGI to make the MySQL Query
+// The results are *pre formatted*   We do not format the results
+// in this JavaScript.
+//
+// This variation of the getQSO function is making a query on a specific
+// callsign.
+//
+// An alternative implementation might convert this to PHP instead
+// to remove the need for a CGI script.  
+//
+function getQSO(cback)
+{
+   // Are You In My Log ?
+   var target = "/cgi-bin/ayiml.cgi?cs=" + csign;
+   req = new HTTP.newRequest();
+   req.onreadystatechange = function() {
+    if (req.readyState == 4 && req.status == 200) {
+             cback(req.responseText);
+      }
+    };
+    req.open("GET", target);
+    req.send(null);
+
+}
+
+// The meat of the action...
+// So what we do here is call our CGI to make the MySQL Query
+// The results are *pre formatted*   We do not format the results
+// in this JavaScript.
+//
+// This variation of the getQSO function is making a query for
+// last QSO's from "W" land.
+//
+// An alternative implementation might convert this to PHP instead
+// to remove the need for a CGI script.   An interesting
+// improvement would be to pass the region that is "local" to the
+// user in the check variable.  Like ooh say the DXCC code number.
+//
+function getLast(cback)
+{
+   var target = "/cgi-bin/ayiml.cgi?check=1";
+   req = new HTTP.newRequest();
+   req.onreadystatechange = function() {
+    if (req.readyState == 4 && req.status == 200) {
+             cback(req.responseText);
+      }
+    };
+    req.open("GET", target);
+    req.send(null);
+}
+
+
+// The meat of the action...
+// So what we do here is call our CGI to make the MySQL Query
+// The results are *pre formatted*   We do not format the results
+// in this JavaScript.
+//
+// This variation of the getQSO function is making a query for
+// last QSO's from "DX" land.
+//
+// An alternative implementation might convert this to PHP instead
+// to remove the need for a CGI script.   An interesting
+// improvement would be to pass the region that is NOT "local"
+// to the user in the check variable.  Maybe use a signed value.
+// -N is not my region N.
+// +N is in my region N
+// The possibilities for improvement are endless.
+//
+function getLastDX(cback)
+{
+   var target = "/cgi-bin/ayiml.cgi?check=dx";
+   req = new HTTP.newRequest();
+   req.onreadystatechange = function() {
+    if (req.readyState == 4 && req.status == 200) {
+             cback(req.responseText);
+      }
+    };
+    req.open("GET", target);
+    req.send(null);
+}
+
+// This function modifies a region of a page that has the ID of 'mark'
+// This function clears a region of a page that has the ID of 'last'
+// See lookup.html for detail
+function handleLast(dat)
+{
+       document.getElementById("last").innerHTML = dat;
+       document.getElementById("mark").innerHTML = "";
+}
+
+//]]>
+</script>
+</head>
+
+
+<body>
+
+<!--
+This is the body of the page for the query interface.
+What you do here is up to you, but you have a few requirements.
+
+This page body can contain any content you want, but it must
+have the following parts:
+
+1.  A form.
+
+   <form name="qform"
+         id="qform"
+         method="POST"
+         action="javascript:onsubmit=onSub();">
+      <i>Your</i> callsign:
+      <input name="cs" id="cs">
+      <input name="submit" type="submit" value="Submit">
+  </form>
+
+
+The Form delivers the content via POST method to the function
+defined IN the JavaScript above.  Specifically onSub().
+
+2.  The results need to go somewhere.  That somewhere is a region
+    of THIS page that is defined as follows:
+
+<span id="last">
+</span>
+<span id="mark">
+</span>
+
+Wherever you place those <span> tags.. That is where the RESULTS
+will go.  If you want to get technical, as long as you have
+a BODY element that is a container (DIV, SPAN, etc..) that can
+be populated with HTML, then name it id="last" and id="mark".
+
+Here I'm using SPAN container tags.
+
+3.  (OPTIONAL)
+
+    If you want to provide the look up feature to "last N" contacts,
+    then you'll need these two forms:
+
+    <form name="lastform"
+          id="lastform"
+          method="post"
+          action="javascript:onsubmit=onLastSub();">
+
+          <input name="check" 
+                 type="submit" 
+                 value="Click to show last W's">
+    </form>
+
+The phrase "Click to show last W's" refers to the default QTH
+of your site.  Eg., You can customize the script to treat "local"
+as another DXCC entity than "W" (mainland US).
+
+The default DXCC entity of the "local" is 291 (aka "W")...
+
+So if you do want to "localize" this for your special case, edit
+both the script (ayiml.cgi) AND the text shown for this button.
+
+  And,
+
+    <form name="lastdxform"
+           id="lastdxform"
+           method="post"
+           action="javascript:onsubmit=onLastDXSub();">
+
+          <input name="check"
+                 type="submit"
+                 value="Click to show last DX">
+   </form>
+ 
+Below is a template that you can use:
+-->
+
+
+<!-- Begin customization here -->
+<p>
+
+<h2>Online Log for EDIT_ME-CALLSIGN </h2>
+
+This lookup is based on LIVE data from the station log.   <p>
+Custom logging software in the station uploads to the remote 
+database the moment a QSO is logged in the shack.
+
+<p>
+<b>Instructions:</b><br>
+1. Enter <i>your</i> callsign.  The tool does <b>not</b> accept globbing "*"<br>
+2. Press Submit
+<p>
+If you need to report a missing log entry or error, contact me via
+email.  Address is on QRZ.<p>
+
+The search is not case-sensitive.  Eg., for K4M (Midway Island DXpedition), just enter <i>k4m</i>.<p>
+
+<form name="qform" id="qform" method="POST" action="javascript:onsubmit=onSub();">
+<i>Your</i> callsign:
+<input name="cs" id="cs">
+<input name="submit" type="submit" value="Submit">
+</form>
+<p>
+
+Or, check the last week of records:<br>
+<form name="lastform" id="lastform" method="post" action="javascript:onsubmit=onLastSub();">
+<input name="check" type="submit" value="Click to show last W's">
+</form>
+
+<form name="lastdxform" id="lastdxform" method="post" action="javascript:onsubmit=onLastDXSub();">
+<input name="check" type="submit" value="Click to show last DX">
+</form>
+
+<!-- the results go here. -->
+<span id="last">
+</span>
+<span id="mark">
+</span>
+
+<!-- end customization here -->
+AYIML Copyright 2022 Jeff Wandling<br>
+AYIML is licensed under the BSD 3-Clause License<br>
+<!-- add whatever else you want, or nothing... ->
+
+</body>
+</html>
+
